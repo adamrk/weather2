@@ -65,6 +65,9 @@ def update_actual(date):
 
 if __name__ == "__main__":
     if argv[1] == "forecast":
-        update_forecasts()
+        try:
+            update_forecasts()
+        except Exception as e:
+            log.exception(e)
     if argv[1] == "actual":
         update_actual(datetime.today() - timedelta(days=1))
