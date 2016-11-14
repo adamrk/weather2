@@ -1,90 +1,58 @@
 import sys
-import bs4
-import re
 import requests
 import os
 import json
-from urllib2 import urlopen
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
+import xml.etree.ElementTree as xml
 
 """
 TODO:
 
-    Take care of NOAA on holidays - e.g. They will say 'Labor Day' instead of 'Monday'
     Make API calls on different threads
     Add more locations
 """
 
-def previous_day(day):
-    days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    inx = days.index(day)
-    return days[(inx - 1) % 7]
+################## NOAA API ######################
 
-############## NOAA ####################
-## Should probably use the API, but scraping for fun
-
-# To extract the temp in two steps
-regex_temp_sentence = re.compile('(H|h)igh near -?\d{1,3}')
-regex_temp_digits = re.compile('-?\d{1,3}')
-
-def get_temp(string):
-    temp_sen_match = re.search(regex_temp_sentence, string)
-    if temp_sen_match == None:
-        result = None
-    else:
-        result = re.search(regex_temp_digits, temp_sen_match.group()).group()
+def get_noaa_xml(location, offline=False):
+    response = requests.get('http://graphical.weather.gov/xml/sample_products/browser_interface/ndfdBrowserClientByDay.php?lat=%0.2f&lon=%0.2f&format=24+hourly'
+                                % (location['lat'], location['lng']))
+    result = xml.XML(response.text)
     return result
 
-# To extract chance of rain in two steps
-regex_rain_sentence = re.compile('Chance of precipitation is \d{2}%')
-regex_rain_digits = re.compile('\d{2}')
+def get_noaa_temp_rain(xmldata):
+    # these describe the time formats
+    time_layouts = xmldata.findall('.//time-layout')
 
-def get_rain(string):
-    rain_sen_match = re.search(regex_rain_sentence, string)
-    if rain_sen_match == None:
-        result = 0
-    else:
-        result = re.search(regex_rain_digits, rain_sen_match.group()).group()
-    return result
-
-
-def get_noaa_soup(location, offline = False):
-    if offline:
-        file = open('sample_data/sample_noaa_fake.html', 'r')
-        result = bs4.BeautifulSoup(file, 'html.parser')
-    else:
-        string = "http://forecast.weather.gov/MapClick.php?lat=%0.6f&lon=%0.6f" % (location['lat'], location['lng'])
-        html = urlopen(string)
-        result = bs4.BeautifulSoup(html, 'html.parser')
-    return result
-
-
-def get_noaa_temp_rain(soup):
-    """ Return an array of dicts with attributes 'date', 'day', 'temp', 'rain' """
-
-    body = soup.find(id='detailed-forecast-body')
-    daily_forecasts = map(lambda x: {'day' : unicode(x.div.b.string), 'forecast' : unicode(x.find_all('div')[1].string)}, body.contents[1:-1])
-    daily_forecasts = filter(lambda x: x['day'].find('Night') < 0 and x['day'].find('Tonight') < 0 and x['day'].find('night') < 0, daily_forecasts)
-    daily_high_rain = map(lambda x: {'day': x['day'], 'temp': int(get_temp(x['forecast'])), 'rain': int(get_rain(x['forecast']))}, daily_forecasts)
-    # sometimes current day is listed as today or this afternoon. change based on later dates.
-    last_day = daily_high_rain[1]['day']
-    daily_high_rain[0]['day'] = previous_day(last_day)
-    # find if first day is today or tomorrow. Then assign a date to each element
-    date_string = unicode(soup.find(id='about_forecast').find_all(attrs={'class':'fullRow'})[1].find(attrs={'class':'right'}).string)
-    try:
-        curr_date = datetime.strptime(date_string, '%I:%M %p EDT %b %d, %Y').date()
-    except:
-        curr_date = datetime.strptime(date_string, '%I:%M %p PDT %b %d, %Y').date()
-    one_day = timedelta(days=1)
-    if daily_high_rain[0]['day'] == curr_date.strftime('%A'):
-        first_date = curr_date
-    else:
-        first_date = curr_date + one_day
-
-    for i in range(len(daily_high_rain)):
-        daily_high_rain[i]['date'] = first_date + (one_day*i)
-
-    return daily_high_rain[:9]
+    # the element containing highs
+    temp_elem = [x for x in xmldata.findall('.//temperature') 
+                if x.get('type') == 'maximum'][0]
+    temp_time_layout = temp_elem.get('time-layout')
+    temp_time_elem = [x for x in time_layouts if 
+        x.find('layout-key').text == temp_time_layout][0]
+    # zip it with the associated times
+    temps = zip([x.text for x in temp_elem.findall('value')],
+                [x.text for x in temp_time_elem.findall('start-valid-time')])
+    
+    # the element containing chance of rain
+    rain_elem = xmldata.find('.//probability-of-precipitation')
+    rain_time_layout = rain_elem.get('time-layout')
+    rain_time_elem = [x for x in time_layouts if
+        x.find('layout-key').text == rain_time_layout][0]
+    # zip with times
+    rains = zip([x.text for x in rain_elem.findall('value')],
+                [x.text for x in rain_time_elem.findall('start-valid-time')])
+    alls = []
+    for t in temps:
+        for r in rains:
+            if t[1] == r[1]:
+                thedate = datetime.strptime(t[1][:10], '%Y-%m-%d').date()
+                alls.append({'date': thedate,
+                             'day': thedate.strftime('%A'),
+                             'temp': int(t[0]),
+                             'rain': int(r[0])
+                              })
+    return alls
 
 ################## WUnderground ##################
 try:
@@ -143,10 +111,10 @@ def get_fore_temp_rain(json):
 
 ######################## Collecting and Aggregating ###########################
 def get_data(**kwargs):
-    soup = get_noaa_soup(**kwargs)
+    xmldata = get_noaa_xml(**kwargs)
     json1 = get_wu_json(**kwargs)
     json2 = get_fore_json(**kwargs)
-    return {'noaa': soup, 'wu': json1, 'fore': json2}
+    return {'noaa': xmldata, 'wu': json1, 'fore': json2}
 
 def get_temp_rain(data):
     noaa_tr = get_noaa_temp_rain(data['noaa'])
@@ -167,8 +135,8 @@ def agg_data(data, date, temp_or_rain):
     return {'mean': mean, 'dev': dev}
 
 def print_data(**kwargs):
-    soup = get_noaa_soup(**kwargs)
-    noaa_data = get_noaa_temp_rain(soup)
+    xmldata = get_noaa_xml(**kwargs)
+    noaa_data = get_noaa_temp_rain(xmldata)
     print 'data from NOAA:'
     for x in noaa_data:
         print 'on %s (%s) the temp is %d and rain is %d' % (x['day'], x['date'].strftime('%a, %b, %d'), x['temp'], x['rain'])
