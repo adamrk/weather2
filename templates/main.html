@@ -49,6 +49,6 @@
 	{% for loc in locations %}
 	{% if loc[0] != title %}<h1><a href="{{'/?' + loc[1]}}">{{loc[0]}}</a></h1>{% endif %}
 	{% endfor %}
-	<div class="end">Last Update: {{update.strftime("%b %-d, %H:%M:%S EDT")}}</div>
+	<div class="end">Last Update: {{update.strftime("%b %-d, %H:%M:%S UTC")}}</div>
 	</body>
 </html>
