@@ -70,4 +70,7 @@ if __name__ == "__main__":
         except Exception as e:
             log.exception(e)
     if argv[1] == "actual":
-        update_actual(datetime.today() - timedelta(days=1))
+        try:
+            update_actual(datetime.today() - timedelta(days=1))
+        except Exception as e:
+            log.exception(e)

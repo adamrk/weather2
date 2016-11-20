@@ -1,9 +1,9 @@
-from flask import (Flask, 
-				   jsonify, 
-				   make_response, 
-				   render_template, 
-				   request, 
-				   redirect)
+from flask import (Flask,
+                                   jsonify,
+                                   make_response,
+                                   render_template,
+                                   request,
+                                   redirect)
 #from flask_sqlalchemy import SQLAlchemy
 from extract import get_data, get_temp_rain, agg_data
 from color import temp_to_color, rain_to_color
@@ -27,6 +27,8 @@ TODO:
 locations = Crag.query.all()
 locurls = [(x.name, urlencode({'crag': x.name})) for x in locations]
 	
+all_days = ['Saturday', 'Sunday', 'Monday', 'Tuesday',
+		'Wednesday', 'Thursday', 'Friday']
 #offline = 'offline' in sys.argv
 
 def update_data(crag_name):
@@ -70,23 +72,28 @@ def aggregate(tr, dates):
 	return result
 
 ##################### Defining Views ##########################
-# @app.route('/')
-# def index():
-# 	loc = request.args.get('crag', 'Gunks')
-# 	return jsonify({'crag': loc, 'results': aggregated[loc]})
 
 @app.route('/')
 def page():
-	# if offline fix date to sample data date
-#	if offline:
-#		today = date(2016, 8, 26)
-#	else:
 	today = date.today()
 	# set dates to dates of interest
 	one_day = timedelta(days=1)
+	selected_days = [x for x in all_days if request.args.get(x,False)]
+	def_days = [x for x in all_days if 
+		request.cookies.get(x, False) == 'True']
+	if selected_days != [] and def_days != selected_days:
+		days = selected_days
+		setdef_link_days = True
+	elif def_days != []:
+		days = def_days
+		setdef_link_days = False
+	else:
+		days = ['Saturday', 'Sunday']
+		setdef_link_days = True
+
+	days_url = urlencode({x:True for x in days})
 	alldates = [today + x * one_day for x in range(7)]
-	dates = [x for x in alldates if x.strftime('%A') in 
-		['Saturday', 'Sunday']] 
+	dates = [x for x in alldates if x.strftime('%A') in days] 
 	
 	# determine which location user wants
 	req_loc = request.args.get('crag')
@@ -100,6 +107,8 @@ def page():
 	else:
 		loc = 'Gunks'
 		setdef_link = True
+	setdef_link = setdef_link or setdef_link_days 
+		# enable set default button if this is not def for days or crag 
 
 	temp_rain, last_update = update_data(loc)
 	aggregated = aggregate(temp_rain, dates)
@@ -108,7 +117,8 @@ def page():
 										result=aggregated,
 										locations=locurls,
 										update=last_update,
-										setdef_link=setdef_link
+										setdef_link=setdef_link,
+										days_url=days_url,
 										)
 
 @app.route('/setdefault')
@@ -116,6 +126,11 @@ def setdefault():
 	loc = request.args.get('crag', 'Gunks')
 	response = app.make_response(redirect('/'))
 	response.set_cookie('default_crag', value=loc)
+	for x in all_days:
+		if request.args.get(x, False):
+			response.set_cookie(x, value='True')
+		else:
+			response.set_cookie(x, value='False')
 	return response
 
 @app.route('/setdefault')

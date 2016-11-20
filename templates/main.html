@@ -11,7 +11,7 @@
 	{% for loc in locations %}
 		{% if loc[0] == title and setdef_link %}
 			<div class="end">
-				<a class="slink" href="{{'/setdefault?' + loc[1]}}">(Set this to default)</a>
+				<a class="slink" href="{{'/setdefault?' + loc[1] + '&' + days_url}}">(Set this to default)</a>
 			</div>
 		{% endif %}
 	{% endfor %}
@@ -47,8 +47,20 @@
 	</table>
 	<h1>Other Crags:</h1>
 	{% for loc in locations %}
-	{% if loc[0] != title %}<h1><a href="{{'/?' + loc[1]}}">{{loc[0]}}</a></h1>{% endif %}
+	{% if loc[0] != title %}<h1><a href="{{'/?' + loc[1] + '&' + days_url}}">{{loc[0]}}</a></h1>{% endif %}
 	{% endfor %}
-	<div class="end">Last Update: {{update.strftime("%b %-d, %H:%M:%S UTC")}}</div>
+	<div class="end">
+		<form method="get">
+			<input type=checkbox name="Saturday" value="True">Saturday
+			<input type=checkbox name="Sunday" value="True"> Sunday
+			<input type=checkbox name="Monday" value="True"> Monday
+			<input type=checkbox name="Tuesday" value="True"> Tuesday
+			<input type=checkbox name="Wednesday" value="True"> Wednesday
+			<input type=checkbox name="Thursday" value="True"> Thursday
+			<input type=checkbox name="Friday" value="True"> Friday
+			<input type=submit value="View Selected Days">
+			<input type=hidden name=crag value="{{title}}">
+		</form>
+	Last Update: {{update.strftime("%b %-d, %H:%M:%S UTC")}}</div>
 	</body>
 </html>
