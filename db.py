@@ -55,11 +55,7 @@ class Actual(db.Model):
             self.crag_id, self.temp, self.rain, 
             self.date.strftime("%b %d %y"))
 
-if __name__ == "__main__":
-    ## to setup db create all tables and load in the static crag data
-    log.info("creating tables")
-    db.create_all()
-    crags = [
+crags = [
         Crag(name="Gunks", 
              lat=4174, 
              lng=-7408, 
@@ -71,8 +67,17 @@ if __name__ == "__main__":
         Crag(name="Joshua Tree", 
              lat=3401, 
              lng=-11616, 
-             wu_name="CA/Joshua_Tree")
+             wu_name="CA/Joshua_Tree"),
+        Crag(name="Rumney",
+             lat=4380,
+             lng=-7183,
+             wu_name="NH/Rumney"),
         ]
+
+if __name__ == "__main__":
+    ## to setup db create all tables and load in the static crag data
+    log.info("creating tables")
+    db.create_all()
     for crag in crags:
         db.session.add(crag)
     db.session.commit()
