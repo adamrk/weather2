@@ -4,18 +4,34 @@ import os
 import json
 from datetime import date, datetime
 import xml.etree.ElementTree as xml
+import pickle
 
 """
 TODO:
 
     Make API calls on different threads
-    Add more locations
 """
+
+def find_sample(location, service):
+    if location['wu_name'] == 'NY/New_Paltz':
+        name = 'gunks'
+    elif location['wu_name'] == 'KY/Slade':
+        name = 'red'
+    elif location['wu_name'] == 'CA/Joshua_Tree':
+        name = 'josh'
+    else:
+        return None
+    return ('sample_data/' + name + '_' + service + ".pickle")
 
 ################## NOAA API ######################
 
 def get_noaa_xml(location, offline=False):
-    response = requests.get('http://graphical.weather.gov/xml/sample_products/browser_interface/ndfdBrowserClientByDay.php?lat=%0.2f&lon=%0.2f&format=24+hourly'
+    if offline:
+        fname = find_sample(location, 'noaa_xml')
+        with open(fname, 'r') as f:
+            return pickle.load(f)
+    response = requests.get(
+        'http://graphical.weather.gov/xml/sample_products/browser_interface/ndfdBrowserClientByDay.php?lat=%0.2f&lon=%0.2f&format=24+hourly'
                                 % (location['lat'], location['lng']))
     result = xml.XML(response.text)
     return result
@@ -63,8 +79,9 @@ except KeyError:
 
 def get_wu_json(location, offline = False):
     if offline:
-        file = open('sample_data/sample_wu.json', 'r')
-        result = json.load(file)
+        fname = find_sample(location, 'wu_json')
+        with open(fname, 'r') as f:
+            return pickle.load(f)
     else:
         response = requests.get('http://api.wunderground.com/api/%s/forecast10day/q/%s.json' % 
                 (api_key, location['wu_name']))
@@ -91,8 +108,9 @@ except KeyError:
 
 def get_fore_json(location, offline = False):
     if offline:
-        file = open('sample_data/sample_fore.json', 'r')
-        result = json.load(file)
+        fname = find_sample(location, 'fore_json')
+        with open(fname, 'r') as f:
+            return pickle.load(f)
     else:
         response = requests.get('https://api.darksky.net/forecast/%s/%0.6f,%0.6f' % 
             (fore_api_key, location['lat'], location['lng'] ) )

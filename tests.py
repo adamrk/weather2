@@ -1,40 +1,46 @@
 import unittest
 import datetime
+import pickle
 
+from db import Crag
 import extract
 
 class TestExtract(unittest.TestCase):
 	def setUp(self):
-		self.expected_tr = {'fore': [{'date': datetime.date(2016, 8, 26), 'day': 'Friday', 'rain': 19, 'temp': 89},
-				{'date': datetime.date(2016, 8, 27), 'day': 'Saturday', 'rain': 0, 'temp': 88},
-				{'date': datetime.date(2016, 8, 28), 'day': 'Sunday', 'rain': 0, 'temp': 88},
-				{'date': datetime.date(2016, 8, 29), 'day': 'Monday', 'rain': 11, 'temp': 92},
-				{'date': datetime.date(2016, 8, 30), 'day': 'Tuesday', 'rain': 2, 'temp': 88},
-				{'date': datetime.date(2016, 8, 31), 'day': 'Wednesday', 'rain': 2, 'temp': 89},
-				{'date': datetime.date(2016, 9, 1), 'day': 'Thursday', 'rain': 0, 'temp': 84},
-				{'date': datetime.date(2016, 9, 2), 'day': 'Friday','rain': 20, 'temp': 76}],
-		    'noaa': [{'date': datetime.date(2016, 8, 27),'day': 'Saturday','rain': 0,'temp': 88},
-		  		{'date': datetime.date(2016, 8, 28),'day': u'Sunday','rain': 70,'temp': 84},
-		  		{'date': datetime.date(2016, 8, 29),'day': u'Monday','rain': 0,'temp': 78},
-		    	{'date': datetime.date(2016, 8, 30),'day': u'Tuesday','rain': 0,'temp': 78},
-		    	{'date': datetime.date(2016, 8, 31),'day': u'Wednesday','rain': 0,'temp': 84},
-		        {'date': datetime.date(2016, 9, 1),'day': u'Thursday','rain': 0,'temp': 84},
-		        {'date': datetime.date(2016, 9, 2),'day': u'Friday','rain': 40,'temp': 85}],
-		    'wu': [{'date': datetime.date(2016, 8, 26),'day': u'Friday','rain': 20,'temp': 91},
-		  		{'date': datetime.date(2016, 8, 27),'day': u'Saturday','rain': 0,'temp': 88},
-		  		{'date': datetime.date(2016, 8, 28),'day': u'Sunday','rain': 10,'temp': 89},
-		  		{'date': datetime.date(2016, 8, 29),'day': u'Monday','rain': 20,'temp': 90},
-		  		{'date': datetime.date(2016, 8, 30),'day': u'Tuesday','rain': 10,'temp': 90},
-		  		{'date': datetime.date(2016, 8, 31),'day': u'Wednesday','rain': 10,'temp': 91},
-		  		{'date': datetime.date(2016, 9, 1),'day': u'Thursday','rain': 10,'temp': 86},
-		  		{'date': datetime.date(2016, 9, 2),'day': u'Friday','rain': 10,'temp': 84},
-		  		{'date': datetime.date(2016, 9, 3),'day': u'Saturday','rain': 20,'temp': 81}]}
-		  		
-		
-	def testGetData(self):
-		data = extract.get_data(offline=True)
+		filename = 'sample_data/gunks_temp_rain.pickle'
+		with open(filename, 'r') as f:
+			self.expected_tr = pickle.load(f)
+
+		self.crags = Crag.query.all()
+		self.locations = []
+
+		for crag in self.crags:
+			self.locations.append({
+	            'lat' : crag.lat / 100.0,
+	            'lng' : crag.lng / 100.0,
+	            'wu_name' : crag.wu_name })
+
+	def testCalcTempRain(self):
+		data = extract.get_data(
+			location = 
+				{'lat': 41.74, 'lng': -74.08, 'wu_name': 'NY/New_Paltz'},
+			offline=True)
+
 		tr = extract.get_temp_rain(data)
-		self.assertEqual(tr, expected)
+		self.assertEqual(tr, self.expected_tr)
+
+	def testNOAADataFormat(self):
+		for location in self.locations:
+			xml = extract.get_noaa_xml(location, offline=False)
+			self.assertNotEqual(xml.findall('.//time-layout'), [])
+			highs = [x for x in xml.findall('.//temperature') if 
+				x.get('type') == 'maximum']
+			self.assertNotEqual(highs, [])
+			self.assertNotEqual(highs[0].get('time-layout', False), False)
+			time_layouts = xml.findall('.//time-layout')
+			layouts = [x.find('layout-key').text for x in time_layouts]
+			self.assertTrue(highs[0].get('time-layout') in layouts)
+			
 
 
 if __name__=='__main__':

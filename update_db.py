@@ -21,9 +21,9 @@ def update_forecasts():
     crags = Crag.query.all()
     updatetime = datetime.utcnow() #all entries to have exact same pred time
     for crag in crags:
-        location = {'lat' : crag.lat / 100.0, ## stored as int in db
-            'lng' : crag.lng / 100.0, ## stored as int in db
-            'wu_name' : crag.wu_name }
+        # location = {'lat' : crag.lat / 100.0, ## stored as int in db
+        #     'lng' : crag.lng / 100.0, ## stored as int in db
+        #     'wu_name' : crag.wu_name }
         data = get_data(location = {
             'lat' : crag.lat / 100.0,
             'lng' : crag.lng / 100.0,
