@@ -1,6 +1,8 @@
 import unittest
 import datetime
 import pickle
+import pdb
+import xml.etree.ElementTree
 
 from db import Crag
 import extract
@@ -31,16 +33,43 @@ class TestExtract(unittest.TestCase):
 
 	def testNOAADataFormat(self):
 		for location in self.locations:
-			xml = extract.get_noaa_xml(location, offline=False)
-			self.assertNotEqual(xml.findall('.//time-layout'), [])
-			highs = [x for x in xml.findall('.//temperature') if 
+			xmldat = extract.get_noaa_xml(location, offline=False)
+
+			# check the time layouts can be found
+			self.assertNotEqual(xmldat.findall('.//time-layout'), [])
+			
+			# check highs exist and we can find time-layout
+			highs = [x for x in xmldat.findall('.//temperature') if 
 				x.get('type') == 'maximum']
 			self.assertNotEqual(highs, [])
 			self.assertNotEqual(highs[0].get('time-layout', False), False)
-			time_layouts = xml.findall('.//time-layout')
+			time_layouts = xmldat.findall('.//time-layout')
 			layouts = [x.find('layout-key').text for x in time_layouts]
 			self.assertTrue(highs[0].get('time-layout') in layouts)
-			
+			self.assertNotEqual(highs[0].findall('value'), [])
+			for x in highs[0].findall('value'):
+				try:
+					int(x.text)
+				except:
+					self.fail("temp values not all ints")
+
+			# start-valid-times is in the time layouts
+			for x in time_layouts:
+				self.assertNotEqual(x.findall('start-valid-time'), [])
+
+			# rain element works
+			rain_el = xmldat.find('.//probability-of-precipitation')
+			self.assertNotEqual(rain_el, None)
+			time_layout_rain = rain_el.get('time-layout')
+			self.assertNotEqual(time_layout_rain, None)
+			self.assertTrue(time_layout_rain in 
+				[x.find('layout-key').text for x in time_layouts])
+			for x in rain_el.findall('value'):
+				if not ('true' == x.get('{http://www.w3.org/2001/XMLSchema-instance}nil')):
+					try:
+						int(x.text)
+					except:
+						self.fail("rain values not all ints")
 
 
 if __name__=='__main__':

@@ -56,9 +56,11 @@ def get_noaa_temp_rain(xmldata):
     rain_time_elem = [x for x in time_layouts if
         x.find('layout-key').text == rain_time_layout][0]
     # zip with times
-    rains = zip([x.text for x in rain_elem.findall('value')],
+    rains = zip([x.text if not (x.get('{http://www.w3.org/2001/XMLSchema-instance}nil')
+                    == 'true') else '0' for x in rain_elem.findall('value')],
                 [x.text for x in rain_time_elem.findall('start-valid-time')])
     alls = []
+
     for t in temps:
         for r in rains:
             if t[1] == r[1]:
