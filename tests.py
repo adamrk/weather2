@@ -51,7 +51,7 @@ class TestExtract(unittest.TestCase):
 				try:
 					int(x.text)
 				except:
-					self.fail("temp values not all ints")
+					self.fail("NOAA temp values not all ints")
 
 			# start-valid-times is in the time layouts
 			for x in time_layouts:
@@ -69,8 +69,30 @@ class TestExtract(unittest.TestCase):
 					try:
 						int(x.text)
 					except:
-						self.fail("rain values not all ints")
+						self.fail("NOAA rain values not all ints")
+
+	def testWUFormat(self):
+		for location in self.locations:
+			jsondata = extract.get_wu_json(location, offline=False)
+			forecasts = jsondata.get('forecast').get('simpleforecast').get('forecastday')
+			self.assertNotEqual(forecasts, None)
+			for x in forecasts:
+				self.assertNotEqual(x.get('date').get('weekday'), None)
+				self.assertNotEqual(x.get('high').get('fahrenheit'), None)
+				self.assertNotEqual(x.get('pop'), None)
+				self.assertNotEqual(x.get('date').get('year'), None)
+				self.assertNotEqual(x.get('date').get('month'), None)
+				self.assertNotEqual(x.get('date').get('day'), None)
+				try:
+					int(x.get('high').get('fahrenheit'))
+				except:
+					self.fail("WU temp value not int")
+				try:
+					int(x.get('pop'))
+				except:
+					self.fail("WU pop value not int")
 
 
+#################### WORKING HERE 
 if __name__=='__main__':
 	unittest.main()
