@@ -21,7 +21,7 @@ class TestExtract(unittest.TestCase):
 	            'lat' : crag.lat / 100.0,
 	            'lng' : crag.lng / 100.0,
 	            'wu_name' : crag.wu_name })
-
+		
 	def testCalcTempRain(self):
 		data = extract.get_data(
 			location = 
@@ -92,7 +92,30 @@ class TestExtract(unittest.TestCase):
 				except:
 					self.fail("WU pop value not int")
 
+	def testDarkSkyFormat(self):
+		for location in self.locations:
+			jsondata = extract.get_fore_json(location, offline=False)
+			forecasts = jsondata.get('daily').get('data')
+			self.assertNotEqual(forecasts, None)
+			for x in forecasts:
+				self.assertNotEqual(x.get('time'), None)
+				self.assertNotEqual(x.get('temperatureMax'), None)
+				self.assertNotEqual(x.get('precipProbability'), None)
+				try:
+					int(x.get('temperatureMax'))
+				except:
+					self.fail('Dark Sky temp value not int')
+				try:
+					int(x.get('precipProbability'))
+				except:
+					self.fail('Dark Sky rain value not int')
 
-#################### WORKING HERE 
+
 if __name__=='__main__':
+	crags = Crag.query.all()
+
+	print "testing crags: "
+	for crag in crags:
+		print crag
+
 	unittest.main()
