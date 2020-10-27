@@ -3,7 +3,7 @@ bs4==0.0.1
 certifi==2016.9.26
 cffi==1.8.3
 click==6.6
-cryptography==1.5.2
+cryptography==3.2
 enum34==1.1.6
 Flask==0.11.1
 Flask-SQLAlchemy==2.1
